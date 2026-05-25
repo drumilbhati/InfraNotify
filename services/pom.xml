@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.infraNotify</groupId>
-	<artifactId>services</artifactId>
+	<artifactId>infra-notify-services</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
+	<name>infra-notify-services</name>
+	<description>InfraNotify services backend</description>
 	<url/>
 	<licenses>
 		<license/>

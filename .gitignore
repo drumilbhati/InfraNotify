@@ -1,0 +1,24 @@
+# OS
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Build outputs
+**/target/
+**/build/
+
+# Logs
+*.log
+
+# Docker bind-mount data
+/Docker/Data/
+/Docker/data/
+
+# Local env files
+.env
+.env.*
