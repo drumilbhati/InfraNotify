@@ -1,0 +1,1 @@
+- incase your ai agent stopped working in the devcontiner, try allowing it to bypass approvals, that worked for copilot
