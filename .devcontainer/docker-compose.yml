@@ -5,8 +5,6 @@ services:
       dockerfile: .devcontainer/Dockerfile
     command: sleep infinity
     init: true
-    volumes:
-      - ..:/workspaces/InfraNotify:cached
     depends_on:
       - postgres
     environment:
