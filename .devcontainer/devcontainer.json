@@ -1,0 +1,21 @@
+{
+  "name": "InfraNotify",
+  "dockerComposeFile": ["docker-compose.yml"],
+  "service": "workspace",
+  "workspaceFolder": "/workspaces/InfraNotify",
+  "overrideCommand": true,
+  "shutdownAction": "stopCompose",
+  "remoteUser": "node",
+  "forwardPorts": [3000, 5432, 8080, 8081, 8082, 8083, 8084, 8085, 8086],
+  "postCreateCommand": "cd client/dashboard && npm install",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "bradlc.vscode-tailwindcss",
+        "dbaeumer.vscode-eslint",
+        "ms-azuretools.vscode-docker",
+        "vscjava.vscode-java-pack"
+      ]
+    }
+  }
+}
