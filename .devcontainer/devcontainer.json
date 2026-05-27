@@ -3,6 +3,8 @@
   "dockerComposeFile": ["docker-compose.yml"],
   "service": "workspace",
   "workspaceFolder": "/workspaces/InfraNotify",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/InfraNotify,type=bind,consistency=cached",
+  "mountWorkspaceGitRoot": false,
   "overrideCommand": true,
   "shutdownAction": "stopCompose",
   "remoteUser": "node",
