@@ -1,0 +1,195 @@
+
+<style>
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+.step-nav{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+.step-pill{font-size:12px;font-weight:500;padding:5px 12px;border-radius:20px;border:0.5px solid var(--color-border-tertiary);cursor:pointer;color:var(--color-text-secondary);transition:all .15s;white-space:nowrap}
+.step-pill.active{background:var(--color-text-primary);color:var(--color-background-primary);border-color:var(--color-text-primary)}
+.panel{display:none}.panel.active{display:block}
+.code{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:12px 14px;font-family:var(--font-mono);font-size:11.5px;color:var(--color-text-primary);line-height:1.8;overflow-x:auto;margin:10px 0}
+.kw{color:#7F77DD}.ann{color:#D85A30}.cm{color:var(--color-text-tertiary);font-style:italic}.str{color:#1D9E75}.num{color:#EF9F27}.cls{color:#378ADD}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px 14px;margin-bottom:8px}
+.card-title{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.card-body{font-size:12px;color:var(--color-text-secondary);line-height:1.6}
+.tag{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;display:inline-block}
+.t-teal{background:#E1F5EE;color:#085041}.t-amber{background:#FAEEDA;color:#633806}.t-blue{background:#E6F1FB;color:#0C447C}.t-coral{background:#FAECE7;color:#712B13}.t-purple{background:#EEEDFE;color:#3C3489}
+@media(prefers-color-scheme:dark){
+  .t-teal{background:#085041;color:#9FE1CB}.t-amber{background:#633806;color:#FAC775}.t-blue{background:#0C447C;color:#B5D4F4}.t-coral{background:#712B13;color:#F5C4B3}.t-purple{background:#3C3489;color:#CECBF6}
+}
+.flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0}
+.fbox{background:var(--color-background-secondary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:6px 10px;font-size:12px;font-weight:500;color:var(--color-text-primary)}
+.farr{color:var(--color-text-tertiary);font-size:14px}
+.divider{height:0.5px;background:var(--color-border-tertiary);margin:14px 0}
+.nav-row{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+.highlight{border-left:2px solid #1D9E75;padding:8px 12px;border-radius:0;margin:10px 0}
+.highlight p{font-size:12px;color:var(--color-text-secondary);line-height:1.6;margin:0}
+</style>
+
+<h2 class="sr-only">Step-by-step explanation of how the health poller works internally in PulseBoard</h2>
+
+<div class="step-nav" role="tablist">
+  <div class="step-pill active" onclick="go(0)" role="tab">1 — Scheduler wakes up</div>
+  <div class="step-pill" onclick="go(1)" role="tab">2 — Fetch services</div>
+  <div class="step-pill" onclick="go(2)" role="tab">3 — Ping in parallel</div>
+  <div class="step-pill" onclick="go(3)" role="tab">4 — Publish to Kafka</div>
+  <div class="step-pill" onclick="go(4)" role="tab">5 — Alert engine reacts</div>
+</div>
+
+<div class="panel active" id="p0">
+  <div class="card-title" style="font-size:15px;margin-bottom:6px">Every 30 seconds, Spring wakes up the poller</div>
+  <div class="card-body" style="margin-bottom:12px">You write one method and annotate it with <code>@Scheduled</code>. Spring's task executor calls it automatically on the interval you set. You don't write a while loop, you don't manage threads. It just runs.</div>
+  <div class="code"><span class="ann">@Component</span>
+<span class="kw">public class</span> <span class="cls">HealthPollerJob</span> {
+
+  <span class="cm">// Spring calls this every 30,000 milliseconds automatically</span>
+  <span class="ann">@Scheduled</span>(fixedRate = <span class="num">30000</span>)
+  <span class="kw">public void</span> runPollingCycle() {
+    <span class="cm">// everything below happens once per cycle</span>
+    log.info(<span class="str">"Polling cycle started"</span>);
+  }
+}</div>
+  <div class="highlight"><p>You also need <code>@EnableScheduling</code> on your main class. Without it, Spring ignores all <code>@Scheduled</code> annotations silently — a common gotcha.</p></div>
+  <div class="nav-row"><button onclick="go(1)">Next ↗</button></div>
+</div>
+
+<div class="panel" id="p1">
+  <div class="card-title" style="font-size:15px;margin-bottom:6px">It asks auth-service: what services should I ping?</div>
+  <div class="card-body" style="margin-bottom:12px">The health poller doesn't have its own database. It calls auth-service via REST to get the list of all active registered services and their endpoint URLs. This is the only cross-service REST call in the whole cycle.</div>
+  <div class="code"><span class="ann">@Autowired</span>
+<span class="kw">private</span> <span class="cls">WebClient</span> webClient;
+
+<span class="cls">List</span>&lt;<span class="cls">MonitoredService</span>&gt; services = webClient
+  .get()
+  .uri(<span class="str">"http://auth-service:8081/internal/services/active"</span>)
+  .retrieve()
+  .bodyToFlux(<span class="cls">MonitoredService</span>.<span class="kw">class</span>)
+  .collectList()
+  .block();</div>
+  <div class="card">
+    <div class="card-title"><span class="tag t-amber">Why WebClient and not RestTemplate?</span></div>
+    <div class="card-body">RestTemplate is blocking — it holds one thread per request until the response comes back. If you're pinging 200 services, that's 200 threads sitting idle waiting. WebClient is non-blocking — it fires all 200 requests and handles responses as they arrive, using a tiny thread pool. Night and day for performance.</div>
+  </div>
+  <div class="nav-row"><button onclick="go(0)">← Back</button><button onclick="go(2)">Next ↗</button></div>
+</div>
+
+<div class="panel" id="p2">
+  <div class="card-title" style="font-size:15px;margin-bottom:6px">It pings all services at the same time — not one by one</div>
+  <div class="card-body" style="margin-bottom:12px">If it pinged services sequentially, 200 services × 5s timeout = potentially 1000 seconds per cycle. Instead it fires all requests in parallel using a thread pool, collects results, and moves on.</div>
+  <div class="code"><span class="cls">ExecutorService</span> pool = <span class="cls">Executors</span>.newFixedThreadPool(<span class="num">20</span>);
+
+<span class="cls">List</span>&lt;<span class="cls">Future</span>&lt;<span class="cls">PingResult</span>&gt;&gt; futures = services.stream()
+  .map(service -&gt; pool.submit(() -&gt; pingService(service)))
+  .toList();
+
+<span class="cm">// Collect all results (waits for the slowest one)</span>
+<span class="cls">List</span>&lt;<span class="cls">PingResult</span>&gt; results = futures.stream()
+  .map(f -&gt; f.get())
+  .toList();
+
+<span class="kw">private</span> <span class="cls">PingResult</span> pingService(<span class="cls">MonitoredService</span> service) {
+  <span class="kw">try</span> {
+    <span class="kw">long</span> start = <span class="cls">System</span>.currentTimeMillis();
+    <span class="kw">int</span> status = webClient.get()
+      .uri(service.getEndpointUrl())
+      .retrieve()
+      .toBodilessEntity()
+      .timeout(<span class="cls">Duration</span>.ofSeconds(<span class="num">5</span>))  <span class="cm">// give up after 5s</span>
+      .map(r -&gt; r.getStatusCode().value())
+      .onErrorReturn(<span class="num">0</span>)              <span class="cm">// 0 = unreachable</span>
+      .block();
+    <span class="kw">long</span> responseMs = <span class="cls">System</span>.currentTimeMillis() - start;
+    <span class="kw">boolean</span> isUp = status &gt;= <span class="num">200</span> &amp;&amp; status &lt; <span class="num">300</span>;
+
+    <span class="kw">return new</span> <span class="cls">PingResult</span>(service.getId(), isUp, responseMs, status);
+  } <span class="kw">catch</span> (<span class="cls">Exception</span> e) {
+    <span class="kw">return new</span> <span class="cls">PingResult</span>(service.getId(), <span class="kw">false</span>, <span class="num">-1</span>, <span class="num">0</span>);
+  }
+}</div>
+  <div class="flow">
+    <div class="fbox">ping service A</div>
+    <div class="farr">⬐</div>
+    <div class="fbox" style="background:var(--color-background-primary)">all fire<br>at once</div>
+    <div class="farr">⬑</div>
+    <div class="fbox">ping service B</div>
+  </div>
+  <div class="nav-row"><button onclick="go(1)">← Back</button><button onclick="go(3)">Next ↗</button></div>
+</div>
+
+<div class="panel" id="p3">
+  <div class="card-title" style="font-size:15px;margin-bottom:6px">Each result becomes a metric event on Kafka</div>
+  <div class="card-body" style="margin-bottom:12px">The poller doesn't decide if an alert should fire — that's the alert engine's job. The poller just packages each ping result as a standard metric event and publishes it to the <code>health.checks</code> Kafka topic. One event per service per cycle.</div>
+  <div class="code">results.forEach(result -&gt; {
+
+  <span class="cls">MetricEvent</span> event = <span class="cls">MetricEvent</span>.builder()
+    .serviceId(result.getServiceId())
+    .metricName(<span class="str">"endpoint_health"</span>)
+    .value(result.isUp() ? <span class="num">1.0</span> : <span class="num">0.0</span>)  <span class="cm">// 1 = up, 0 = down</span>
+    .unit(<span class="str">"status"</span>)
+    .tags(<span class="cls">Map</span>.of(
+      <span class="str">"status_code"</span>, <span class="cls">String</span>.valueOf(result.getStatusCode()),
+      <span class="str">"response_ms"</span>, <span class="cls">String</span>.valueOf(result.getResponseMs())
+    ))
+    .timestamp(<span class="cls">Instant</span>.now())
+    .build();
+
+  kafkaTemplate.send(<span class="str">"health.checks"</span>, result.getServiceId(), event);
+});</div>
+  <div class="card">
+    <div class="card-title"><span class="tag t-blue">Why value 1.0 and 0.0?</span></div>
+    <div class="card-body">The alert engine works with numbers, not booleans. A rule looks like "if <code>endpoint_health</code> is less than 1.0 for 60 seconds, fire an alert." This means your alert rules for uptime use the exact same system as CPU or memory rules. One rule engine, all metric types.</div>
+  </div>
+  <div class="nav-row"><button onclick="go(2)">← Back</button><button onclick="go(4)">Next ↗</button></div>
+</div>
+
+<div class="panel" id="p4">
+  <div class="card-title" style="font-size:15px;margin-bottom:6px">Alert engine picks it up and decides what to do</div>
+  <div class="card-body" style="margin-bottom:12px">The alert engine is subscribed to the <code>health.checks</code> topic. Every event that comes in gets evaluated against the service's alert rules. It tracks state in Redis — so it knows whether this service was already down last cycle or if this is a fresh outage.</div>
+  <div class="code"><span class="ann">@KafkaListener</span>(topics = <span class="str">"health.checks"</span>)
+<span class="kw">public void</span> onHealthCheck(<span class="cls">MetricEvent</span> event) {
+
+  <span class="cm">// Fetch rules for this service (cached in Redis for 60s)</span>
+  <span class="cls">List</span>&lt;<span class="cls">AlertRule</span>&gt; rules = ruleCache.getRulesForService(event.getServiceId());
+
+  <span class="kw">for</span> (<span class="cls">AlertRule</span> rule : rules) {
+    <span class="kw">if</span> (!rule.getMetricName().equals(event.getMetricName())) <span class="kw">continue</span>;
+
+    <span class="kw">boolean</span> breached = evaluate(event.getValue(), rule); <span class="cm">// e.g. 0.0 &lt; 1.0 → true</span>
+
+    <span class="cls">String</span> stateKey = <span class="str">"alert:state:"</span> + rule.getId();
+    <span class="cls">String</span> currentState = redis.get(stateKey); <span class="cm">// "OK" or "FIRING"</span>
+
+    <span class="kw">if</span> (breached &amp;&amp; !<span class="str">"FIRING"</span>.equals(currentState)) {
+      redis.set(stateKey, <span class="str">"FIRING"</span>);
+      kafkaTemplate.send(<span class="str">"alerts.fired"</span>, buildAlertEvent(event, rule));
+
+    } <span class="kw">else if</span> (!breached &amp;&amp; <span class="str">"FIRING"</span>.equals(currentState)) {
+      redis.set(stateKey, <span class="str">"OK"</span>);
+      kafkaTemplate.send(<span class="str">"alerts.resolved"</span>, buildAlertEvent(event, rule));
+    }
+    <span class="cm">// if already FIRING + still breached → do nothing (no spam)</span>
+  }
+}</div>
+  <div class="highlight"><p>The Redis state key is what prevents notification spam. Without it, every 30-second poll of a down service would send a new alert email. With it, you get exactly one alert when it goes down, and one when it recovers.</p></div>
+  <div class="divider"></div>
+  <div style="font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:8px">The full chain in one line</div>
+  <div class="flow">
+    <div class="fbox">@Scheduled<br><span style="font-size:10px;color:var(--color-text-tertiary)">every 30s</span></div>
+    <div class="farr">→</div>
+    <div class="fbox">fetch services<br><span style="font-size:10px;color:var(--color-text-tertiary)">REST → auth</span></div>
+    <div class="farr">→</div>
+    <div class="fbox">ping all<br><span style="font-size:10px;color:var(--color-text-tertiary)">parallel</span></div>
+    <div class="farr">→</div>
+    <div class="fbox">Kafka<br><span style="font-size:10px;color:var(--color-text-tertiary)">health.checks</span></div>
+    <div class="farr">→</div>
+    <div class="fbox">alert engine<br><span style="font-size:10px;color:var(--color-text-tertiary)">Redis state</span></div>
+    <div class="farr">→</div>
+    <div class="fbox">notify<br><span style="font-size:10px;color:var(--color-text-tertiary)">if new</span></div>
+  </div>
+  <div class="nav-row"><button onclick="go(3)">← Back</button><button onclick="sendPrompt('Show me the full HealthPollerJob.java implementation')">Give me the full code ↗</button></div>
+</div>
+
+<script>
+function go(n){
+  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',i===n));
+  document.querySelectorAll('.step-pill').forEach((d,i)=>{d.classList.toggle('active',i===n);d.setAttribute('aria-selected',i===n)});
+}
+</script>
