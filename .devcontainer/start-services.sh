@@ -5,6 +5,33 @@ LOG_DIR="$ROOT/.devcontainer/logs"
 
 mkdir -p "$LOG_DIR"
 
+kill_port_listeners() {
+  local port="$1"
+  local pids
+
+  pids=$(ss -ltnp "sport = :$port" 2>/dev/null | awk -F'pid=' '{for (i=2; i<=NF; i++) {split($i,a,","); print a[1]}}' | sort -u)
+
+  if [ -n "$pids" ]; then
+    echo "Stopping processes on port $port: $pids"
+    kill -TERM $pids 2>/dev/null || true
+
+    pids=$(ss -ltnp "sport = :$port" 2>/dev/null | awk -F'pid=' '{for (i=2; i<=NF; i++) {split($i,a,","); print a[1]}}' | sort -u)
+    if [ -n "$pids" ]; then
+      echo "Force stopping processes on port $port: $pids"
+      kill -KILL $pids 2>/dev/null || true
+    fi
+  fi
+}
+
+bootstrap_maven_wrapper() {
+  local dir="$1"
+
+  if [ -x "$dir/mvnw" ]; then
+    echo "Bootstrapping Maven wrapper..."
+    (cd "$dir" && ./mvnw -q -DskipTests -version) > "$LOG_DIR/maven-wrapper.log" 2>&1
+  fi
+}
+
 start_java_service() {
   local dir="$1"
   local name
@@ -15,8 +42,18 @@ start_java_service() {
 
   name="$(basename "$dir")"
   echo "Starting $name..."
-  nohup "$dir/mvnw" -q -DskipTests spring-boot:run > "$LOG_DIR/${name}.log" 2>&1 &
+  (
+    cd "$dir" || exit 1
+    nohup ./mvnw -q -DskipTests spring-boot:run > "$LOG_DIR/${name}.log" 2>&1 &
+  )
 }
+
+bootstrap_maven_wrapper "$ROOT/services/api-gateway"
+
+# Free common dev ports before starting services.
+for port in 3000 8080 8081 8082 8083 8084 8085 8086; do
+  kill_port_listeners "$port"
+done
 
 start_java_service "$ROOT/services/api-gateway"
 start_java_service "$ROOT/services/auth-service"
