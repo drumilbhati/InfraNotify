@@ -8,7 +8,7 @@
   "overrideCommand": true,
   "shutdownAction": "stopCompose",
   "remoteUser": "node",
-  "forwardPorts": [22, 3000, 5432, 8080, 8081, 8082, 8083, 8084, 8085, 8086],
+  "forwardPorts": [22, 3000, 3001, 4317, 4318, 5432, 6379, 8080, 8081, 8082, 8083, 8084, 8085, 8086, 9090, 9092, 16686, 27017],
   "postCreateCommand": "cd client/dashboard && npm install",
   "postStartCommand": "bash .devcontainer/startup.sh",
   "customizations": {
