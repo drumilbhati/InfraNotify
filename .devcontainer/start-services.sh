@@ -72,3 +72,11 @@ if [ -f "$ROOT/client/dashboard/package.json" ]; then
   echo "Starting dashboard..."
   (cd "$ROOT/client/dashboard" && nohup npm run dev > "$LOG_DIR/dashboard.log" 2>&1 &)
 fi
+
+# start ssh, so that the external agents can connect to the workspace
+sudo apt update
+sudo apt install -y openssh-server
+# always reset password on container start
+echo 'node:infranotify' | sudo chpasswd
+# start ssh daemon
+sudo service ssh start
