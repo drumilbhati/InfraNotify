@@ -1,0 +1,37 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'api-gateway'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['api-gateway:8080']
+
+  - job_name: 'auth-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['auth-service:8081']
+
+  - job_name: 'metrics-ingestion-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['metrics-ingestion-service:8082']
+
+  - job_name: 'alert-engine-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['alert-engine-service:8083']
+
+  - job_name: 'analytics-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['analytics-service:8085']
+
+  - job_name: 'health-poller-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['health-poller-service:8086']
