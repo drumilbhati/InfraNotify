@@ -80,3 +80,8 @@ sudo apt install -y openssh-server
 echo 'node:infranotify' | sudo chpasswd
 # start ssh daemon
 sudo service ssh start
+
+#Installing Codex
+npm install -g @openai/codex
+sudo apt install -y bubblewrap #dependency for codex sandboxing
+# add further Agents as required 
