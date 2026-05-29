@@ -316,3 +316,9 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
 - Do not add `@SuppressWarnings` to hide compiler warnings — fix the root cause.
 - Do not return HTTP 200 for errors. Use the correct status code every time.
 - Do not merge code with failing tests. Fix the tests or fix the code.
+
+
+
+
+
+- while editing docker compose files edit both the one in the dev container and the one outside with same changes
