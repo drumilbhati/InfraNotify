@@ -1,4 +1,27 @@
 services:
+  auth-service:
+    image: maven:3.9.9-eclipse-temurin-21
+    restart: unless-stopped
+    working_dir: /workspace/services/auth-service
+    command: ./mvnw spring-boot:run
+    profiles:
+      - services
+    volumes:
+      - ..:/workspace
+      - auth-service-maven-cache:/root/.m2
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:?POSTGRES_DB is required}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER is required}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   workspace:
     build:
       context: ..
@@ -167,6 +190,7 @@ services:
       retries: 5
 
 volumes:
+  auth-service-maven-cache:
   postgres-data:
   kafka-data:
   mongodb-data:
