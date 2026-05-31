@@ -9,7 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 		"spring.datasource.password=",
 		"spring.datasource.driver-class-name=org.h2.Driver",
 		"spring.jpa.hibernate.ddl-auto=validate",
-		"spring.flyway.enabled=false"
+		"spring.flyway.enabled=true"
 })
 class AuthServiceApplicationTests {
 
